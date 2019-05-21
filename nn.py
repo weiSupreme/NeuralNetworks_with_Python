@@ -2,6 +2,19 @@ import numpy as np
 import random
 import time
 
+
+# parameters template
+'''
+lr = {'initial_rate': 0.03, \
+          'end_rate': 0.00001, \
+            'power': 1.0}
+params ={'layers': [num_input, 100, 10], \
+             'learning_rate': lr, \
+               'batch': 32, \
+                 'activation_fn': 'sigmoid'}
+'''
+
+
 class NeuralNetwork:
     def __init__(self, parameters):
         self.W = []
@@ -9,23 +22,28 @@ class NeuralNetwork:
         self.max_step = 0
 
         self.layers = parameters['layers']
-        self.batch = parameters['batch']
-        self.activation_fn = parameters['activation_fn']
+        self.batch = parameters['batch'] if 'batch' in parameters else 32
+        self.activation_fn = parameters['activation_fn'] if 'activation_fn' in parameters else 'sigmoid'
 
         # learn_rate
         lr = parameters['learning_rate']
-        self.learning_rate = lr['initial_rate']
-        self.initial_learning_rate = lr['initial_rate']
-        self.end_learning_rate = lr['end_rate']
-        self.learning_rate_power = lr['power']
+        self.learning_rate = lr['initial_rate'] if 'initial_rate' in lr else 0.1
+        self.initial_learning_rate = lr['initial_rate'] if 'initial_rate' in lr else 0.1
+        self.end_learning_rate = lr['end_rate'] if 'end_rate' in lr else 0.0000001
+        self.learning_rate_power = lr['power'] if 'power' in lr else 1.0
+        self.momentum = lr['momentum'] if 'momentum' in lr else 0.9
+        self.momentum_v = []
 
 
         for i in range(0, len(self.layers) - 2):
             w = np.random.randn(self.layers[i] + 1, self.layers[i + 1] + 1)
             self.W.append(w / np.sqrt(self.layers[i]))
+            self.momentum_v.append(np.zeros((self.layers[i] + 1, self.layers[i + 1] + 1)))
 
         w = np.random.randn(self.layers[-2] + 1, self.layers[-1])
         self.W.append(w / np.sqrt(self.layers[-2]))
+        self.momentum_v.append(np.zeros((self.layers[-2] + 1, self.layers[-1])))
+
 
     def __repr__(self):
         return "NeuralNetwork:{}".format('-'.join(str(l) for l in self.layers))
@@ -59,7 +77,7 @@ class NeuralNetwork:
 
     def data_gen(self, X, Y):
         num = len(X)
-        num_infact = 6000
+        num_infact = 600
         shuffle = random.sample(range(num), num_infact)
         count = 0
         while count<num_infact:
@@ -110,9 +128,11 @@ class NeuralNetwork:
         D = D[::-1]
 
         # update lr nad W
-        self.learning_rate = self.end_learning_rate + (self.initial_learning_rate - self.end_learning_rate) * (1 - float(self.global_step/self.max_step)) ** self.learning_rate_power
+        self.learning_rate = self.end_learning_rate + (self.initial_learning_rate - self.end_learning_rate) \
+             * (1 - float(self.global_step/self.max_step)) ** self.learning_rate_power
         for layer in range(len(self.W)):
-            self.W[layer] += -self.learning_rate * A[layer].T.dot(D[layer])
+            self.momentum_v[layer] = self.momentum * self.momentum_v[layer] -self.learning_rate * A[layer].T.dot(D[layer])
+            self.W[layer] += self.momentum_v[layer]
 
     def predict(self, X, addBias=True):
         p = np.atleast_2d(X)

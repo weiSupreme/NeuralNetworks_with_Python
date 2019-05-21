@@ -15,9 +15,9 @@ x=(x-x.min())/(x.max()-x.min())
 trainX, testX, trainY, testY = x[:60000], x[60000:], y[:60000], y[60000:]
 
 # parameters
-lr = {'initial_rate': 0.03, \
-          'end_rate': 0.00001, \
-            'power': 1.0}
+lr = {'initial_rate': 0.01, \
+          'end_rate': 0.0001, \
+            'momentum': 0.9}
 params ={'layers': [trainX.shape[1], 100, 10], \
              'learning_rate': lr, \
                'batch': 32, \
@@ -26,7 +26,7 @@ params ={'layers': [trainX.shape[1], 100, 10], \
 net = NeuralNetwork(params)
 print("[INFO] {}".format(net))
 
-net.train(trainX, trainY, epochs=10, displayUpdate=1)
+net.train(trainX, trainY, epochs=20, displayUpdate=1)
 
 predictions = net.predict(testX)
 print(classification_report(testY, predictions.argmax(axis=1)))
