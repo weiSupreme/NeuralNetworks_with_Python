@@ -18,25 +18,26 @@ class NeuralNetwork:
     def __repr__(self):
         return "NeuralNetwork:{}".format('-'.join(str(l) for l in self.layers))
 
-    def activation(self, x, name='sigmoid'):
-        if self.activation_fn == 'sigmoid':
+    def activation(self, x, name = None):
+        if name == None:
+            name = self.activation_fn
+        if name == 'sigmoid':
             return 1.0 / (1 + np.exp(-x))
-        elif self.activation_fn == 'relu':
-            return np.where(x<0, 0, x)
+        elif name == 'relu':
+            return x * (x>0)
         else:
             raise Exception('There is no {} activation function'.format(name))
 
-    def activation_deriv(self, x, name='sigmoid'):
-        if self.activation_fn == 'sigmoid':
+    def activation_deriv(self, x, name = None):
+        if name == None:
+            name = self.activation_fn
+        if name == 'sigmoid':
             return x * (1 - x)
-        elif self.activation_fn == 'relu':
-            return np.where(x>0, 1, 0)
+        elif name == 'relu':
+            return 1. * (x>0)
         else:
             raise Exception('There is no {} activation function'.format(name))
 
-    def softmax(self, x):
-        x_exp = np.exp(x)
-        return x_exp / np.sum(x_exp, axis=0, keepdims=True)
 
     def train(self, X, y, epochs=1000, displayUpdate=100):
         X = np.append(X,np.ones((X.shape[0],1)),axis=1)
@@ -51,15 +52,19 @@ class NeuralNetwork:
 
     def forward(self, x):
         A = [np.atleast_2d(x)]
-        for layer in range(0, len(self.W)):
+        for layer in range(0, len(self.W) - 1):
             net = A[layer].dot(self.W[layer])
             out = self.activation(net)
             A.append(out)
+        layer = len(self.W) - 1
+        net = A[layer].dot(self.W[layer])
+        out = self.activation(net, name='sigmoid')
+        A.append(out)
         return A
 
     def backward(self,A,y):
         error = A[-1] - y
-        D = [error * self.activation_deriv(A[-1])]
+        D = [error * self.activation_deriv(A[-1], name='sigmoid')]
         for layer in range(len(A) - 2, 0, -1):
             delta = D[-1].dot(self.W[layer].T)
             delta = delta * self.activation_deriv(A[layer])
@@ -76,12 +81,14 @@ class NeuralNetwork:
         if addBias:
             p = np.append(p, np.ones((p.shape[0],1)),axis=1)
 
-        for layer in range(len(self.W)):
+        for layer in range(len(self.W) - 1):
             p = self.activation(np.dot(p, self.W[layer]))
+        layer = len(self.W) - 1
+        p = self.activation(np.dot(p, self.W[layer]), name='sigmoid')
         return p
 
     def calculate_loss(self, X, target):
         target = np.atleast_2d(target)
         predictions = self.predict(X, addBias=False)
         loss = 0.5 * np.sum((predictions - target)**2)
-        return loss
+        return loss / predictions.shape[0]
