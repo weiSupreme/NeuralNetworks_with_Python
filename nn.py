@@ -5,10 +5,20 @@ import time
 class NeuralNetwork:
     def __init__(self, parameters):
         self.W = []
+        self.global_step = 0
+        self.max_step = 0
+
         self.layers = parameters['layers']
-        self.alpha = parameters['alpha']
         self.batch = parameters['batch']
         self.activation_fn = parameters['activation_fn']
+
+        # learn_rate
+        lr = parameters['learning_rate']
+        self.learning_rate = lr['initial_rate']
+        self.initial_learning_rate = lr['initial_rate']
+        self.end_learning_rate = lr['end_rate']
+        self.learning_rate_power = lr['power']
+
 
         for i in range(0, len(self.layers) - 2):
             w = np.random.randn(self.layers[i] + 1, self.layers[i + 1] + 1)
@@ -49,7 +59,7 @@ class NeuralNetwork:
 
     def data_gen(self, X, Y):
         num = len(X)
-        num_infact = num
+        num_infact = 6000
         shuffle = random.sample(range(num), num_infact)
         count = 0
         while count<num_infact:
@@ -58,6 +68,7 @@ class NeuralNetwork:
         yield X[shuffle[count-self.batch:num_infact]], Y[shuffle[count-self.batch:num_infact]], False
 
     def train(self, X, Y, epochs=100, displayUpdate=10):
+        self.max_step = epochs * len(X) // self.batch
         X = np.append(X,np.ones((X.shape[0],1)),axis=1)
 
         for epoch in range(0, epochs):
@@ -68,6 +79,7 @@ class NeuralNetwork:
                 x, y, flag = next(dg)
                 A = self.forward(x)
                 self.backward(A, np.array(y))
+                self.global_step += 1
             end = time.clock()
             if epoch == 0 or (epoch + 1) % displayUpdate == 0:
                 loss = self.calculate_loss(X, Y)
@@ -97,9 +109,10 @@ class NeuralNetwork:
 
         D = D[::-1]
 
-        # update W
+        # update lr nad W
+        self.learning_rate = self.end_learning_rate + (self.initial_learning_rate - self.end_learning_rate) * (1 - float(self.global_step/self.max_step)) ** self.learning_rate_power
         for layer in range(len(self.W)):
-            self.W[layer] += -self.alpha * A[layer].T.dot(D[layer])
+            self.W[layer] += -self.learning_rate * A[layer].T.dot(D[layer])
 
     def predict(self, X, addBias=True):
         p = np.atleast_2d(X)

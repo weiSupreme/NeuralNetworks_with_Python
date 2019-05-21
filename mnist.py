@@ -14,9 +14,12 @@ x=(x-x.min())/(x.max()-x.min())
 # split dataset
 trainX, testX, trainY, testY = x[:60000], x[60000:], y[:60000], y[60000:]
 
-# train
+# parameters
+lr = {'initial_rate': 0.03, \
+          'end_rate': 0.00001, \
+            'power': 1.0}
 params ={'layers': [trainX.shape[1], 100, 10], \
-             'alpha': 0.03, \
+             'learning_rate': lr, \
                'batch': 32, \
                  'activation_fn': 'sigmoid'}
 
