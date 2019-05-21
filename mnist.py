@@ -22,7 +22,7 @@ testY=np.zeros((testX.shape[0], 10))
 testY[np.arange(testX.shape[0]),testY_.astype('int')]=1.0
 
 # train
-net = NeuralNetwork([trainX.shape[1], 32, 16, 10], alpha=0.01, activation_fn='relu')
+net = NeuralNetwork([trainX.shape[1], 100, 10], alpha=0.1, activation_fn='sigmoid')
 print("[INFO] {}".format(net))
 
 net.train(trainX, trainY, epochs=20, displayUpdate=1)
