@@ -2,7 +2,7 @@ import numpy as np
 
 
 class NeuralNetwork:
-    def __init__(self, layers, alpha=0.1, activation_fn='sigmoid'):
+    def __init__(self, layers, alpha=0.01, activation_fn='sigmoid'):
         self.W = []
         self.layers = layers
         self.alpha = alpha
@@ -18,7 +18,7 @@ class NeuralNetwork:
     def __repr__(self):
         return "NeuralNetwork:{}".format('-'.join(str(l) for l in self.layers))
 
-    def activation(self, x, name='sigmoid'):
+    def activation(self, x):
         if self.activation_fn == 'sigmoid':
             return 1.0 / (1 + np.exp(-x))
         elif self.activation_fn == 'relu':
@@ -26,7 +26,7 @@ class NeuralNetwork:
         else:
             raise Exception('There is no {} activation function'.format(name))
 
-    def activation_deriv(self, x, name='sigmoid'):
+    def activation_deriv(self, x):
         if self.activation_fn == 'sigmoid':
             return x * (1 - x)
         elif self.activation_fn == 'relu':
@@ -35,10 +35,10 @@ class NeuralNetwork:
             raise Exception('There is no {} activation function'.format(name))
 
     def softmax(self, x):
-        x_exp = np.exp(x)
-        return x_exp / np.sum(x_exp, axis=0, keepdims=True)
+        x_exp = np.exp(x-np.max(x))
+        return x_exp / np.sum(x_exp)
 
-    def train(self, X, y, epochs=1000, displayUpdate=100):
+    def train(self, X, y, epochs=100, displayUpdate=10):
         X = np.append(X,np.ones((X.shape[0],1)),axis=1)
 
         for epoch in range(0, epochs):
@@ -51,15 +51,20 @@ class NeuralNetwork:
 
     def forward(self, x):
         A = [np.atleast_2d(x)]
-        for layer in range(0, len(self.W)):
+        for layer in range(0, len(self.W) - 1):
             net = A[layer].dot(self.W[layer])
             out = self.activation(net)
             A.append(out)
+        layer = len(self.W) - 1
+        net = A[layer].dot(self.W[layer])
+        out = self.softmax(net)
+        A.append(out)
         return A
 
-    def backward(self,A,y):
-        error = A[-1] - y
-        D = [error * self.activation_deriv(A[-1])]
+    def backward(self, A, y):
+        D = A[-1]
+        D[np.arange(1), y.astype('int')] -= 1
+        D = [D]
         for layer in range(len(A) - 2, 0, -1):
             delta = D[-1].dot(self.W[layer].T)
             delta = delta * self.activation_deriv(A[layer])
@@ -76,12 +81,13 @@ class NeuralNetwork:
         if addBias:
             p = np.append(p, np.ones((p.shape[0],1)),axis=1)
 
-        for layer in range(len(self.W)):
+        for layer in range(len(self.W) - 1):
             p = self.activation(np.dot(p, self.W[layer]))
+        p = self.softmax(np.dot(p, self.W[len(self.W) - 1]))
         return p
 
     def calculate_loss(self, X, target):
         target = np.atleast_2d(target)
         predictions = self.predict(X, addBias=False)
-        loss = 0.5 * np.sum((predictions - target)**2)
-        return loss
+        loss = -np.log(predictions[np.arange(predictions.shape[0]),target.astype('int')])
+        return np.sum(loss)/loss.shape[1]
