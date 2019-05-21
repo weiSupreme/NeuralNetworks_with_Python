@@ -1,19 +1,21 @@
 import numpy as np
-
+import random
+import time
 
 class NeuralNetwork:
-    def __init__(self, layers, alpha=0.01, activation_fn='sigmoid'):
+    def __init__(self, parameters):
         self.W = []
-        self.layers = layers
-        self.alpha = alpha
-        self.activation_fn = activation_fn
+        self.layers = parameters['layers']
+        self.alpha = parameters['alpha']
+        self.batch = parameters['batch']
+        self.activation_fn = parameters['activation_fn']
 
-        for i in range(0, len(layers) - 2):
-            w = np.random.randn(layers[i] + 1, layers[i + 1] + 1)
-            self.W.append(w / np.sqrt(layers[i]))
+        for i in range(0, len(self.layers) - 2):
+            w = np.random.randn(self.layers[i] + 1, self.layers[i + 1] + 1)
+            self.W.append(w / np.sqrt(self.layers[i]))
 
-        w = np.random.randn(layers[-2] + 1, layers[-1])
-        self.W.append(w / np.sqrt(layers[-2]))
+        w = np.random.randn(self.layers[-2] + 1, self.layers[-1])
+        self.W.append(w / np.sqrt(self.layers[-2]))
 
     def __repr__(self):
         return "NeuralNetwork:{}".format('-'.join(str(l) for l in self.layers))
@@ -45,28 +47,32 @@ class NeuralNetwork:
             x_exp[i]=x_exp[i]/sum[i]
         return x_exp
 
-    def train(self, X, y, epochs=100, displayUpdate=10):
+    def data_gen(self, X, Y):
+        num = len(X)
+        num_infact = num
+        shuffle = random.sample(range(num), num_infact)
+        count = 0
+        while count<num_infact:
+            yield X[shuffle[count:count+self.batch]], Y[shuffle[count:count+self.batch]], True
+            count += self.batch
+        yield X[shuffle[count-self.batch:num_infact]], Y[shuffle[count-self.batch:num_infact]], False
+
+    def train(self, X, Y, epochs=100, displayUpdate=10):
         X = np.append(X,np.ones((X.shape[0],1)),axis=1)
 
         for epoch in range(0, epochs):
-            x_ = []
-            target_ = []
-            cnt = 0
-            for (x, target) in zip(X, y):
-                x_.append(x)
-                target_.append(target)
-                cnt += 1
-                if cnt == 32:
-                    A = self.forward(x_)
-                    self.backward(A, np.array(target_))
-                    x_ = []
-                    target_ = []
-                    cnt = 0
-                else:
-                    continue
+            dg = self.data_gen(X, Y)
+            flag = True
+            start = time.clock()
+            while flag:
+                x, y, flag = next(dg)
+                A = self.forward(x)
+                self.backward(A, np.array(y))
+            end = time.clock()
             if epoch == 0 or (epoch + 1) % displayUpdate == 0:
-                loss = self.calculate_loss(X, y)
+                loss = self.calculate_loss(X, Y)
                 print('[INFO] epoch={}, loss={:.7f}'.format(epoch + 1, loss))
+                #print('[INFO] epoch={}, loss={:.7f}, time={:.3f}'.format(epoch + 1, loss, end-start))
 
     def forward(self, x):
         A = [np.atleast_2d(x)]
