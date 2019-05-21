@@ -18,33 +18,52 @@ class NeuralNetwork:
     def __repr__(self):
         return "NeuralNetwork:{}".format('-'.join(str(l) for l in self.layers))
 
-    def activation(self, x):
-        if self.activation_fn == 'sigmoid':
+    def activation(self, x, name=None):
+        if name == None:
+            name = self.activation_fn
+        if name == 'sigmoid':
             return 1.0 / (1 + np.exp(-x))
-        elif self.activation_fn == 'relu':
-            return np.where(x<0, 0, x)
+        elif name == 'relu':
+            return x * (x>0)
         else:
             raise Exception('There is no {} activation function'.format(name))
 
-    def activation_deriv(self, x):
-        if self.activation_fn == 'sigmoid':
+    def activation_deriv(self, x, name=None):
+        if name == None:
+            name = self.activation_fn
+        if name == 'sigmoid':
             return x * (1 - x)
-        elif self.activation_fn == 'relu':
-            return np.where(x>0, 1, 0)
+        elif name == 'relu':
+            return 1. * (x>0)
         else:
             raise Exception('There is no {} activation function'.format(name))
 
     def softmax(self, x):
-        x_exp = np.exp(x-np.max(x))
-        return x_exp / np.sum(x_exp)
+        x_exp = np.exp(x - np.max(x))
+        sum=np.sum(x_exp, axis=1)
+        for i in range(x_exp.shape[0]):
+            x_exp[i]=x_exp[i]/sum[i]
+        return x_exp
 
     def train(self, X, y, epochs=100, displayUpdate=10):
         X = np.append(X,np.ones((X.shape[0],1)),axis=1)
 
         for epoch in range(0, epochs):
+            x_ = []
+            target_ = []
+            cnt = 0
             for (x, target) in zip(X, y):
-                A = self.forward(x)
-                self.backward(A, target)
+                x_.append(x)
+                target_.append(target)
+                cnt += 1
+                if cnt == 32:
+                    A = self.forward(x_)
+                    self.backward(A, np.array(target_))
+                    x_ = []
+                    target_ = []
+                    cnt = 0
+                else:
+                    continue
             if epoch == 0 or (epoch + 1) % displayUpdate == 0:
                 loss = self.calculate_loss(X, y)
                 print('[INFO] epoch={}, loss={:.7f}'.format(epoch + 1, loss))
@@ -63,7 +82,7 @@ class NeuralNetwork:
 
     def backward(self, A, y):
         D = A[-1]
-        D[np.arange(1), y.astype('int')] -= 1
+        D[np.arange(y.shape[0]), y.astype('int')] -= 1
         D = [D]
         for layer in range(len(A) - 2, 0, -1):
             delta = D[-1].dot(self.W[layer].T)
